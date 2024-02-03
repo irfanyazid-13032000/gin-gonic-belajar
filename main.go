@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gin-mnc/controllers"
 	"gin-mnc/initializers"
 
 	"github.com/gin-gonic/gin"
@@ -14,10 +15,7 @@ initializers.ConnectToDB()
 
 func main() {
 	r := gin.Default()
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
+	r.POST("/posts", controllers.PostsCreate)
+	r.GET("/posts", controllers.PostsIndex)
 	r.Run()
 }
