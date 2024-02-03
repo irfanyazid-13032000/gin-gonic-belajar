@@ -4,8 +4,11 @@ import (
 	"gin-mnc/initializers"
 	model "gin-mnc/models"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -50,34 +53,50 @@ func Signup(c *gin.Context) {
 
 func Login(c *gin.Context) {
 	var bodyRequest struct {
-    Email    string `json:"email"`
-    Password string `json:"password"`
-  }
+			Email    string `json:"email"`
+			Password string `json:"password"`
+	}
 
-  c.Bind(&bodyRequest)
+	c.Bind(&bodyRequest)
 
-  var user model.User
+	var user model.User
 
-  result := initializers.DB.Statement.DB.Where("email =?",bodyRequest.Email).First(&user)
+	result := initializers.DB.Where("email =?", bodyRequest.Email).First(&user)
 
-  if result.Error!= nil {
-    c.JSON(http.StatusBadRequest,gin.H{
-      "error": "failed to login",
-    })
+	if result.Error != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+					"error": "failed to login",
+			})
+			return
+	}
 
-    return
-  }
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(bodyRequest.Password)); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+					"error": "failed to login",
+			})
+			return
+	}
 
-  if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(bodyRequest.Password)); err!= nil {
-    c.JSON(http.StatusBadRequest,gin.H{
-      "error": "failed to login",
-    })
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub":     user.ID,
+			"expires": time.Now().Add(time.Hour * 24 * 30).Unix(),
+	})
 
-    return
-  }
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 
-  c.JSON(http.StatusOK, gin.H{
-    "user": user,
-  })
+	if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+					"error": "failed to create token",
+			})
+			return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("Authorization",tokenString,3600 * 24 * 30,"","",false,true)
+
+	c.JSON(http.StatusOK, gin.H{
+			"token": tokenString,
+	})
 }
+
 
