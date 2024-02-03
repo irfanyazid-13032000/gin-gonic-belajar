@@ -28,5 +28,7 @@ func main() {
 	r.GET("/validate",middleware.RequireAuth, controllers.Validate)
 
 	r.POST("/customers", controllers.CustomerCreate)
+
+	r.POST("/transactions", controllers.CreateTransaction)
 	r.Run()
 }
