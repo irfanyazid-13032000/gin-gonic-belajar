@@ -14,4 +14,5 @@ func main() {
 	initializers.DB.AutoMigrate(&model.Post{})
 	initializers.DB.AutoMigrate(&model.User{})
 	initializers.DB.AutoMigrate(&model.Customer{})
+	initializers.DB.AutoMigrate(&model.Transaction{})
 }
