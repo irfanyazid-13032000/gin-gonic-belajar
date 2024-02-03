@@ -11,18 +11,12 @@ import (
 func CreateTransaction(c *gin.Context) {
 	// Binding request body to transaction struct
 	var transaction struct {
-		GiverID     uint64  `json:"giver_id"`
-		ReceiverID  uint64  `json:"receiver_id"`
-		Amount      float64 `json:"amount"`
+		GiverID    uint64  `json:"giver_id"`
+		ReceiverID uint64  `json:"receiver_id"`
+		Amount     float64 `json:"amount"`
 	}
 	if err := c.ShouldBindJSON(&transaction); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Validasi data
-	if transaction.Amount <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount"})
 		return
 	}
 
@@ -33,6 +27,21 @@ func CreateTransaction(c *gin.Context) {
 			tx.Rollback()
 		}
 	}()
+
+	// Periksa saldo dari giver_id
+	var giverBalance float64
+	if err := tx.Model(&model.Customer{}).Select("balance").Where("id = ?", transaction.GiverID).Scan(&giverBalance).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve giver balance"})
+		return
+	}
+
+	// Validasi saldo cukup
+	if giverBalance < transaction.Amount {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient balance"})
+		return
+	}
 
 	// Buat objek transaksi
 	newTransaction := model.Transaction{
@@ -68,4 +77,5 @@ func CreateTransaction(c *gin.Context) {
 	// Kembalikan respons
 	c.JSON(http.StatusOK, gin.H{"transaction": newTransaction})
 }
+
 
